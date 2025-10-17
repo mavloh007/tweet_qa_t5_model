@@ -1,0 +1,18 @@
+# Core Python libraries
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+tqdm>=4.65.0
+
+# Deep learning & transformers
+torch>=2.1.0
+transformers>=4.42.0
+datasets>=2.19.0
+sentence-transformers>=2.7.0
+
+peft>=0.11.1        # for LoRA or prompt-tuning support
+evaluate>=0.4.2     # metrics library from Hugging Face
+scikit-learn>=1.4.0 # if you plan to use f1_score etc.
+
+# Visualization and display
+matplotlib-inline>=0.1.6
