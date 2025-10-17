@@ -82,7 +82,7 @@ def train(model, train_loader, val_loader, tokenizer, sem_model, device, args):
         print(f"[epoch {epoch}] time={epoch_time/60:.2f} min | steps/sec={steps_per_sec:.2f} | peak VRAM={peak_vram_mb:.0f} MB")
 
         # ---- Evaluate ----
-        metrics = evaluate(model, val_loader, device, tokenizer)
+        metrics = evaluate(model, val_loader, tokenizer, device)
         val_losses.append(metrics['val_loss'])
         val_f1s.append(metrics['f1'])
         val_avg_sem_sims.append(metrics['avg_sem_sim'])

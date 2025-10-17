@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 import os, math, time, re, ast, string
+from peft import LoraConfig, TaskType, get_peft_model
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ from transformers import (
 )
 from sentence_transformers import SentenceTransformer
 
-# ---- import your custom modules ----
+# ---- import helper ----
 from helper_function import (
     TweetQADataset, build_collate_fn,
     evaluate, answer
@@ -35,7 +35,6 @@ def train(model, train_loader, val_loader, tokenizer, sem_model, device, args):
     num_update_steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum_steps)
     num_training_steps = args.epochs * num_update_steps_per_epoch
     num_warmup_steps = int(0.06 * num_training_steps)
-
     optim = AdamW(model.parameters(), lr=args.lr)
     sched = get_linear_schedule_with_warmup(
         optim, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps
@@ -82,7 +81,7 @@ def train(model, train_loader, val_loader, tokenizer, sem_model, device, args):
         print(f"[epoch {epoch}] time={epoch_time/60:.2f} min | steps/sec={steps_per_sec:.2f} | peak VRAM={peak_vram_mb:.0f} MB")
 
         # ---- Evaluate ----
-        metrics = evaluate(model, val_loader, tokenizer)
+        metrics = evaluate(model, val_loader, tokenizer, device)
         val_losses.append(metrics['val_loss'])
         val_f1s.append(metrics['f1'])
         val_avg_sem_sims.append(metrics['avg_sem_sim'])
@@ -102,17 +101,26 @@ def train(model, train_loader, val_loader, tokenizer, sem_model, device, args):
     plt.plot(train_losses, label="Train loss (per 50 steps)")
     plt.plot([i*len(train_loader)//50 for i in range(1, len(val_losses)+1)], val_losses, label="Val loss (per epoch)")
     plt.xlabel("Steps"); plt.ylabel("Loss")
-    plt.title("Training / Validation Loss"); plt.legend(); plt.show()
+    plt.title("Training / Validation Loss"); plt.legend()
+    save_path = os.path.join(args.save_dir, "loss_curve.png")
+    plt.savefig(save_path)
+    plt.close()
 
     plt.figure(figsize=(6,4))
     plt.plot(range(1, len(val_f1s)+1), val_f1s, marker='o', label="Val F1 per epoch")
     plt.xlabel("Epoch"); plt.ylabel("F1")
-    plt.title("Validation F1 progression"); plt.legend(); plt.show()
+    plt.title("Validation F1 progression"); plt.legend()
+    save_path = os.path.join(args.save_dir, "val_f1_curve.png")
+    plt.savefig(save_path)
+    plt.close()
 
     plt.figure(figsize=(6,4))
     plt.plot(range(1, len(val_avg_sem_sims)+1), val_avg_sem_sims, marker='o', label="Val Avg Semantic Similarity per epoch")
     plt.xlabel("Epoch"); plt.ylabel("Avg Semantic Similarity")
-    plt.title("Validation Avg Semantic Similarity progression"); plt.legend(); plt.show()
+    plt.title("Validation Avg Semantic Similarity progression"); plt.legend()
+    save_path = os.path.join(args.save_dir, "val_avg_sem_sim_curve.png")
+    plt.savefig(save_path)
+    plt.close()
 
 
 # ---------------- MAIN ----------------
@@ -128,6 +136,7 @@ def main():
     model_name = args.model_name
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
     model.to(device)
 
     # Semantic similarity model
